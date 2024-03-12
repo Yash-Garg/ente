@@ -2,6 +2,7 @@ import 'package:ente_auth/utils/totp_util.dart';
 
 class Code {
   static const defaultDigits = 6;
+  static const steamDigits = 5;
   static const defaultPeriod = 30;
 
   int? generatedID;
@@ -64,7 +65,8 @@ class Code {
           "?algorithm=${updatedAlgo.name}&digits=$updatedDigits&issuer=" +
           updateIssuer +
           "&period=$updatePeriod&secret=" +
-          updatedSecret + (updatedType == Type.hotp ? "&counter=$updatedCounter" : ""),
+          updatedSecret +
+          (updatedType == Type.hotp ? "&counter=$updatedCounter" : ""),
       generatedID: generatedID,
     );
   }
@@ -74,10 +76,13 @@ class Code {
     String issuer,
     String secret,
   ) {
+    final digits =
+        issuer.toLowerCase() == 'steam' ? steamDigits : defaultDigits;
+
     return Code(
       account,
       issuer,
-      defaultDigits,
+      digits,
       defaultPeriod,
       secret,
       Algorithm.sha1,
@@ -87,7 +92,7 @@ class Code {
           issuer +
           ":" +
           account +
-          "?algorithm=SHA1&digits=6&issuer=" +
+          "?algorithm=SHA1&digits=$digits&issuer=" +
           issuer +
           "&period=30&secret=" +
           secret,
@@ -96,22 +101,26 @@ class Code {
 
   static Code fromRawData(String rawData) {
     Uri uri = Uri.parse(rawData);
+    final _issuer = _getIssuer(uri);
+    final _digits =
+        _issuer.toLowerCase() == 'steam' ? steamDigits : _getDigits(uri);
+
     try {
-    return Code(
-      _getAccount(uri),
-      _getIssuer(uri),
-      _getDigits(uri),
-      _getPeriod(uri),
-      getSanitizedSecret(uri.queryParameters['secret']!),
-      _getAlgorithm(uri),
-      _getType(uri),
-      _getCounter(uri),
-      rawData,
-    );
-    } catch(e) {
+      return Code(
+        _getAccount(uri),
+        _issuer,
+        _digits,
+        _getPeriod(uri),
+        getSanitizedSecret(uri.queryParameters['secret']!),
+        _getAlgorithm(uri),
+        _getType(uri),
+        _getCounter(uri),
+        rawData,
+      );
+    } catch (e) {
       // if account name contains # without encoding,
       // rest of the url are treated as url fragment
-      if(rawData.contains("#")) {
+      if (rawData.contains("#")) {
         return Code.fromRawData(rawData.replaceAll("#", '%23'));
       } else {
         rethrow;
